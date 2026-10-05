@@ -1,0 +1,197 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Cursor Animation - Meat Target</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0b10;
+            cursor: none; /* إخفاء مؤشر الماوس العادي */
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        let width = (canvas.width = window.innerWidth);
+        let height = (canvas.height = window.innerHeight);
+
+        window.addEventListener("resize", () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const mouse = { x: width / 2, y: height / 2 };
+
+        window.addEventListener("mousemove", (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        class Leg {
+            constructor(parent, length, angleOffset) {
+                this.parent = parent;
+                this.length = length;
+                this.angleOffset = angleOffset;
+                this.joint = { x: parent.x, y: parent.y };
+                this.tip = { x: parent.x, y: parent.y };
+            }
+
+            update() {
+                const targetAngle = this.parent.angle + this.angleOffset;
+                const idealTipX = this.parent.x + Math.cos(targetAngle) * this.length;
+                const idealTipY = this.parent.y + Math.sin(targetAngle) * this.length;
+
+                const dist = Math.hypot(idealTipX - this.tip.x, idealTipY - this.tip.y);
+                if (dist > 60) {
+                    this.tip.x = idealTipX;
+                    this.tip.y = idealTipY;
+                }
+
+                this.joint.x = (this.parent.x + this.tip.x) / 2 + Math.cos(targetAngle + Math.PI / 2) * 15;
+                this.joint.y = (this.parent.y + this.tip.y) / 2 + Math.sin(targetAngle + Math.PI / 2) * 15;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.parent.x, this.parent.y);
+                ctx.lineTo(this.joint.x, this.joint.y);
+                ctx.lineTo(this.tip.x, this.tip.y);
+                ctx.strokeStyle = "#ff7b00";
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(this.tip.x, this.tip.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.fill();
+            }
+        }
+
+        class Spider {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.legs = [];
+
+                const legAngles = [-1.2, -0.8, -0.4, -0.1, 0.1, 0.4, 0.8, 1.2];
+                for (let i = 0; i < 8; i++) {
+                    const side = i < 4 ? -1 : 1;
+                    this.legs.push(new Leg(this, 70, legAngles[i] * side + (side === 1 ? Math.PI : 0)));
+                }
+            }
+
+            update() {
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 5) {
+                    this.angle = Math.atan2(dy, dx);
+                    this.x += (mouse.x - this.x) * 0.08;
+                    this.y += (mouse.y - this.y) * 0.08;
+                }
+
+                this.legs.forEach(leg => leg.update());
+            }
+
+            draw() {
+                // خيط متصل بقطعة اللحم
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(mouse.x, mouse.y);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                this.legs.forEach(leg => leg.draw());
+
+                // جسم العنكبوت
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+                ctx.fillStyle = "#ff7b00";
+                ctx.fill();
+
+                // رأس العنكبوت
+                const headX = this.x + Math.cos(this.angle) * 10;
+                const headY = this.y + Math.sin(this.angle) * 10;
+                ctx.beginPath();
+                ctx.arc(headX, headY, 7, 0, Math.PI * 2);
+                ctx.fillStyle = "#111111";
+                ctx.fill();
+            }
+        }
+
+        // رسم مؤشر الماوس على شكل قطعة لحمة (🍖)
+        function drawMeat(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-Math.PI / 4);
+
+            // العظم (Bone)
+            ctx.fillStyle = "#e0e0e0";
+            ctx.fillRect(-18, -3, 36, 6);
+
+            // رؤوس العظم البيضاء
+            ctx.beginPath();
+            ctx.arc(-18, -4, 4, 0, Math.PI * 2);
+            ctx.arc(-18, 4, 4, 0, Math.PI * 2);
+            ctx.arc(18, -4, 4, 0, Math.PI * 2);
+            ctx.arc(18, 4, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // قطعة اللحم الحمراء (Meat Body)
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#b32424";
+            ctx.fill();
+
+            // تفاصيل دهن اللحم (Fat Layer)
+            ctx.beginPath();
+            ctx.ellipse(-3, -2, 8, 5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#d9534f";
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        const spider = new Spider(width / 2, height / 2);
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            spider.update();
+            spider.draw();
+
+            // رسم قطعة اللحمة مكان الماوس
+            drawMeat(mouse.x, mouse.y);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
